@@ -446,24 +446,45 @@
   }
   setInterval(boot, 500);
 
-  // helper: capture the CURRENT logged-in account into the bot account pool.
+  // helper: capture accounts (current session + Drag slots) into the bot pool.
+  function readCookie(name) {
+    const parts = ("; " + document.cookie).split("; " + name + "=");
+    return 2 === parts.length ? parts.pop().split(";").shift() : "";
+  }
+  async function fetchGameTokenFor(entry) {
+    const opts = entry.accessToken
+      ? { credentials: "omit", headers: { Authorization: "Bearer " + entry.accessToken } }
+      : { credentials: "include" };
+    const r = await fetch("https://3rb.io/api/auth/game-token", opts);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && (d.token || (d.data && d.data.token));
+  }
   window.SENPA_ADD_ACCOUNT = async function () {
+    const slots = [];
     const uuid = localStorage.getItem("active_session_id");
-    if (!uuid || "logout" === uuid) { alert("Not logged in. Log into the bot account first."); return; }
-    try {
-      const r = await fetch("https://3rb.io/api/auth/game-token", { credentials: "include" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      const tk = d && (d.token || (d.data && d.data.token));
-      if (!tk) throw new Error("no token in response");
-      const pool = JSON.parse(localStorage.getItem("senpa_bots_accounts") || "[]");
-      const entry = uuid + "|" + tk;
-      if (!pool.includes(entry)) pool.push(entry);
-      localStorage.setItem("senpa_bots_accounts", JSON.stringify(pool));
-      render();
-      alert("Added account to bot pool. Pool: " + pool.length + ". You can now Add Batch.");
-    } catch (e) {
-      alert("SENPA_ADD_ACCOUNT failed: " + (e && e.message));
+    if (uuid && "logout" !== uuid) slots.push({ uuid, accessToken: readCookie("access_token") || "" });
+    for (const key of ["dragplus_account_1", "dragplus_account_2"]) {
+      try {
+        const o = JSON.parse(localStorage.getItem(key) || "null");
+        if (o && o.uuid) slots.push({ uuid: o.uuid, accessToken: o.accessToken || "" });
+      } catch (e) {}
     }
+    const seen = new Set();
+    const pool = JSON.parse(localStorage.getItem("senpa_bots_accounts") || "[]");
+    for (const s of slots) {
+      if (!s.uuid || seen.has(s.uuid)) continue;
+      seen.add(s.uuid);
+      try {
+        const tk = await fetchGameTokenFor(s);
+        if (tk) {
+          const entry = s.uuid + "|" + tk;
+          if (!pool.includes(entry)) pool.push(entry);
+        }
+      } catch (e) {}
+    }
+    localStorage.setItem("senpa_bots_accounts", JSON.stringify(pool));
+    render();
+    alert("Bot pool now: " + pool.length + ". Accounts: " + (pool.map((e) => e.split("|")[0].slice(0, 10)).join(", ") || "none"));
   };
 })();
