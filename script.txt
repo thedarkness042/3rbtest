@@ -1,0 +1,79 @@
+// ==UserScript==
+// @name         Drag+ - MultiBox 2 Names
+// @namespace    http://tampermonkey.net/
+// @version      18
+// @description  3rb.io MultiBox Dark Edition - 2 tabs with account per tab (2026 anti-multitab update)
+// @author       Me
+// @match        *://*.3rb.io/
+// @run-at       document-start
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
+
+const base = "https://raw.githubusercontent.com/thedarkness042/3rbup/main/";
+
+const resources = [base + "shield.js", base + "v.js", base + "m.js", base + "SenpaBots.user.js"];
+
+document.open();
+
+new (class {
+  constructor() {
+    this.url = base + "index.html";
+    this.resources = resources;
+    this.init();
+  }
+
+  getNoCacheUrl(url) {
+    return `${url}${url.includes("?") ? "&" : "?"}_=${Date.now()}`;
+  }
+
+  init() {
+    this.loadPage();
+
+    for (const resource of this.resources) {
+      this.loadResource(resource);
+    }
+  }
+
+  loadResource(url) {
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: this.getNoCacheUrl(url),
+      nocache: true,
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      onload: ({ responseText }) => {
+        if (!responseText) {
+          return confirm("فشل محاولة تحميل موارد الصفحة، يرجى التواصل مع المطور\n\nFailed to load page resources. Please contact the developer.");
+        }
+
+        try {
+          new Function(responseText)();
+        } catch (error) {
+          confirm(
+            `فشل محاولة تحميل موارد الصفحة، يرجى التواصل مع المطور\n\nFailed to load page resources. Please contact the developer.\n\nError: ${error}`,
+          );
+        }
+      },
+    });
+  }
+
+  loadPage() {
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: this.getNoCacheUrl(this.url),
+      nocache: true,
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      onload: ({ responseText }) => {
+        document.write(responseText);
+        document.close();
+      },
+    });
+  }
+})();
