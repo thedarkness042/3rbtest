@@ -387,12 +387,15 @@
       "#senpa-bots-panel .sb-checks{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}" +
       "#senpa-bots-panel .sb-checks label{display:flex;align-items:center;gap:4px;margin:0;color:#cdd7e0}" +
       "#senpa-bots-panel #sb-status{color:#8aa4b8;font-size:11px;margin-top:6px;overflow-wrap:anywhere}" +
+      "#senpa-bots-panel .sb-hint{color:#7c8a99;font-size:10px;line-height:1.5;margin:4px 0 0}" +
       "</style>" +
       '<header><b>🤖 Senpa Bots</b><button id="sb-collapse">−</button></header>' +
       "<main>" +
       '<div class="sb-rowbtns"><label>NAME<input id="sb-name" maxlength="24" value="Bot" style="width:100%"></label></div>' +
       '<div class="sb-rowbtns"><label>ADD COUNT<input id="sb-count" type="number" min="1" max="100" value="1" style="width:80px"></label></div>' +
       '<div class="sb-rowbtns"><button id="sb-add">⚡ Add Batch</button><button id="sb-spawn">▶ Spawn</button><button id="sb-respawn">↻ Respawn</button><button id="sb-stop">■ Stop All</button></div>' +
+      '<div class="sb-rowbtns"><button id="sb-multibox">🔁 Respawn Tab1+2</button></div>' +
+      '<p class="sb-hint">Workflow: play Tab1+Tab2 on this IP → change VPN → press <b>Add Batch</b> (bots come from the new IP). Respawn Tab1+2 restarts your 2 multibox copies.</p>' +
       '<div class="sb-checks">' +
       '<label><input id="sb-auto" type="checkbox">AUTO SPAWN</label>' +
       '<label><input id="sb-resp" type="checkbox">AUTO RESPAWN</label>' +
@@ -411,6 +414,14 @@
     document.getElementById("sb-add").addEventListener("click", () => addBatch(document.getElementById("sb-count").value));
     document.getElementById("sb-spawn").addEventListener("click", () => spawnAll());
     document.getElementById("sb-respawn").addEventListener("click", () => respawnAll());
+    document.getElementById("sb-multibox").addEventListener("click", () => {
+      const dp = window.DRAG_PLUS;
+      try {
+        if (dp && dp.respawn) { dp.respawn(); setStatus("Respawned Tab1 + Tab2 (your 2 multibox copies)."); }
+        else if (dp && dp.multiboxTab) { dp.multiboxTab(); dp.multiboxTab(); setStatus("Switched tabs via multiboxTab."); }
+        else setStatus("DRAG_PLUS.respawn unavailable - respawn Tab2 manually.");
+      } catch (e) { setStatus("Respawn error: " + e.message); }
+    });
     document.getElementById("sb-stop").addEventListener("click", () => stopAll());
     document.getElementById("sb-auto").addEventListener("change", (e) => { state.autoSpawn = e.target.checked; });
     document.getElementById("sb-resp").addEventListener("change", (e) => { state.autoRespawn = e.target.checked; });
