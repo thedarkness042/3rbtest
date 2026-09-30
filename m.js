@@ -5139,6 +5139,8 @@
         mouseWorld: () => ({ x: Mouse.canvasX, y: Mouse.canvasY }),
         playerPos: () => ({ x: Player.x, y: Player.y, alive: Player.isAlive }),
         kill: () => this.recycleActiveCell(),
+        respawn: () => Actions.respawn(),
+        multiboxTab: () => Actions.multiboxTab(),
         accounts: () => Account.slots(),
         setAccount: (slot, uuid, accessToken) => Account.setSlot(slot, uuid, accessToken),
         clearAccounts: () => Account.clearSlots(),
