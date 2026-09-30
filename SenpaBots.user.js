@@ -63,6 +63,39 @@
     }
     const counts = document.getElementById("sb-counts");
     if (counts) counts.textContent = state.bots.size + " total | " + ready + " ready | " + alive + " alive | accounts:" + getAccounts().length;
+    renderAccounts();
+  }
+
+  function renderAccounts() {
+    const el = document.getElementById("sb-accs");
+    if (!el) return;
+    const accs = getAccounts();
+    el.replaceChildren();
+    if (!accs.length) {
+      const p = document.createElement("span");
+      p.textContent = "No bot accounts yet. Log into a bot account in the game, press ➕ Capture, then ↪ Logout and log into the next.";
+      p.style.color = "#7c8a99";
+      el.appendChild(p);
+      return;
+    }
+    accs.forEach((a, i) => {
+      const row = document.createElement("div");
+      row.className = "sb-acc";
+      const uuid = a.split("|")[0] || a;
+      const short = uuid.length > 16 ? uuid.slice(0, 16) + "…" : uuid;
+      const span = document.createElement("span");
+      span.textContent = "● " + short;
+      const del = document.createElement("button");
+      del.textContent = "×";
+      del.onclick = () => {
+        const p = getAccounts();
+        p.splice(i, 1);
+        try { localStorage.setItem("senpa_bots_accounts", JSON.stringify(p)); } catch (e) {}
+        render();
+      };
+      row.append(span, del);
+      el.appendChild(row);
+    });
   }
 
   // ------------------------------------------------------------------ turnstile
@@ -276,6 +309,9 @@
     if (!state.serverUrl) { setStatus("No main-player server yet - connect the main player first."); return; }
     const accounts = getAccounts();
     count = Math.max(1, Math.min(100, Math.trunc(Number(count) || 1)));
+    if (!accounts.length) {
+      setStatus("⚠ No accounts captured — bots will be GUESTS and 3rb kicks guest #2 per IP (Tab2 dies). Press ➕ Capture account first, or change VPN so bots are on a fresh IP.");
+    }
     let added = 0;
     for (let i = 0; i < count; i++) {
       const account = accounts.length ? accounts[(state._accountIdx++) % accounts.length] : "";
@@ -388,14 +424,18 @@
       "#senpa-bots-panel .sb-checks label{display:flex;align-items:center;gap:4px;margin:0;color:#cdd7e0}" +
       "#senpa-bots-panel #sb-status{color:#8aa4b8;font-size:11px;margin-top:6px;overflow-wrap:anywhere}" +
       "#senpa-bots-panel .sb-hint{color:#7c8a99;font-size:10px;line-height:1.5;margin:4px 0 0}" +
+      "#senpa-bots-panel #sb-accs{max-height:120px;overflow:auto;border:1px solid #22282e;border-radius:4px;padding:6px;margin-top:6px}" +
+      "#senpa-bots-panel .sb-acc{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #1c2126;font-size:10px;color:#9fb4c8}" +
+      "#senpa-bots-panel .sb-acc button{background:#3a2020;border:1px solid #5a3a3a;color:#fff;border-radius:3px;cursor:pointer;padding:1px 6px;font-size:10px}" +
       "</style>" +
       '<header><b>🤖 Senpa Bots</b><button id="sb-collapse">−</button></header>' +
       "<main>" +
       '<div class="sb-rowbtns"><label>NAME<input id="sb-name" maxlength="24" value="Bot" style="width:100%"></label></div>' +
       '<div class="sb-rowbtns"><label>ADD COUNT<input id="sb-count" type="number" min="1" max="100" value="1" style="width:80px"></label></div>' +
       '<div class="sb-rowbtns"><button id="sb-add">⚡ Add Batch</button><button id="sb-spawn">▶ Spawn</button><button id="sb-respawn">↻ Respawn</button><button id="sb-stop">■ Stop All</button></div>' +
-      '<div class="sb-rowbtns"><button id="sb-multibox">🔁 Respawn Tab1+2</button></div>' +
-      '<p class="sb-hint">Workflow: play Tab1+Tab2 on this IP → change VPN → press <b>Add Batch</b> (bots come from the new IP). Respawn Tab1+2 restarts your 2 multibox copies.</p>' +
+      '<div class="sb-rowbtns"><button id="sb-multibox">🔁 Respawn Tab1+2</button><button id="sb-capture">➕ Capture account</button><button id="sb-logout">↪ Logout</button></div>' +
+      '<div id="sb-accs"></div>' +
+      '<p class="sb-hint">Workflow: play Tab1+Tab2 on this IP → change VPN → press <b>Add Batch</b> (bots come from the new IP). <b>IMPORTANT:</b> bots must use accounts (Capture button) — guest bots kick Tab2 ("New connection from this browser").</p>' +
       '<div class="sb-checks">' +
       '<label><input id="sb-auto" type="checkbox">AUTO SPAWN</label>' +
       '<label><input id="sb-resp" type="checkbox">AUTO RESPAWN</label>' +
@@ -421,6 +461,17 @@
         else if (dp && dp.multiboxTab) { dp.multiboxTab(); dp.multiboxTab(); setStatus("Switched tabs via multiboxTab."); }
         else setStatus("DRAG_PLUS.respawn unavailable - respawn Tab2 manually.");
       } catch (e) { setStatus("Respawn error: " + e.message); }
+    });
+    document.getElementById("sb-capture").addEventListener("click", () => {
+      if (window.SENPA_ADD_ACCOUNT) window.SENPA_ADD_ACCOUNT().then(() => setStatus("Captured. Pool: " + getAccounts().length));
+      else { setStatus("SENPA_ADD_ACCOUNT not ready yet."); }
+    });
+    document.getElementById("sb-logout").addEventListener("click", () => {
+      for (const k of ["active_session_id", "dragplus_account_1", "dragplus_account_2"]) {
+        try { localStorage.removeItem(k); } catch (e) {}
+      }
+      try { document.cookie = "access_token=;path=/;domain=.3rb.io;max-age=0"; document.cookie = "access_token=;path=/;max-age=0"; } catch (e) {}
+      setStatus("Session cleared. Log into the NEXT bot account, then Capture again.");
     });
     document.getElementById("sb-stop").addEventListener("click", () => stopAll());
     document.getElementById("sb-auto").addEventListener("change", (e) => { state.autoSpawn = e.target.checked; });
